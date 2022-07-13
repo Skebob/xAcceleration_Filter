@@ -205,3 +205,6 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_executable(xaccel_filter src/xaccel_filter_code.cpp)
+target_link_libraries(xaccel_filter ${catkin_LIBRARIES})

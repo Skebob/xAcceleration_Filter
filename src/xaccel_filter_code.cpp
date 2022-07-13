@@ -5,16 +5,16 @@
 #include "geometry_msgs/Vector3Stamped.h"
 
 //TODO split class declaration and implementaton
-#define QUEUESIZE 100;
+#define QUEUESIZE 100
 class xAccelFilter{
     public:
-        xAccelFilter();
+        xAccelFilter(ros::NodeHandle* nh);
 
-        void accelRawDataCallback(const geometry_msgs::Vector3Stamped::ConstPtr& msg);
+        void accelRawCallback(const geometry_msgs::Vector3Stamped::ConstPtr& msg);
 
         void publishAccelAvg(void);
 
-        void xAccelFilter::callbackPublishAccelAvg(const ros::TimerEvent&);
+        void callbackPublishAccelAvg(const ros::TimerEvent&);
 
     private:
         ros::Subscriber accelRawSub;
@@ -55,7 +55,7 @@ xAccelFilter::xAccelFilter(ros::NodeHandle* nh){
     idx = 0;
     avg = 0;
     //TODO setup sub/pub
-    ros::Subscriber accelRawSub = nh->subscribe<geometry_msgs::Vector3Stamped>("filter/free_acceleration", 1, accelRawCallback, this);
+    ros::Subscriber accelRawSub = nh->subscribe<geometry_msgs::Vector3Stamped>("filter/free_acceleration", 1, &xAccelFilter::accelRawCallback, this);
     ros::Publisher accelFilterPub = nh->advertise<std_msgs::Float64>("xAccelFilter/accel_x", 1);
     
     //ros::Timer timer1 = nh->createTimer(ros::Duration(0.01), publishAccelAvg, this);
@@ -63,10 +63,10 @@ xAccelFilter::xAccelFilter(ros::NodeHandle* nh){
 
 int main(int argv, char** argc){
     
-    ros::init(argc, argv, "xAccelFilter");
+    ros::init(argv, argc, "xAccelFilter");
     ros::NodeHandle n;
 
-    xAccelFilter(&n);
+    xAccelFilter filter(&n);
 
     ros::spin();
 
