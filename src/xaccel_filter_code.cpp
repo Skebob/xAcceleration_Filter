@@ -48,7 +48,7 @@ void xAccelFilter::accelRawCallback(const geometry_msgs::Vector3Stamped::ConstPt
 
     idx = (idx + 1) % QUEUESIZE; // idx goes from [0] to [QUEUESIZE - 1] with rollover
 
-
+    publishAccelAvg();
 }
 
 xAccelFilter::xAccelFilter(ros::NodeHandle* nh){
@@ -63,7 +63,7 @@ xAccelFilter::xAccelFilter(ros::NodeHandle* nh){
 
 int main(int argv, char** argc){
     
-    ros::init(argc, argv, "talker");
+    ros::init(argc, argv, "xAccelFilter");
     ros::NodeHandle n;
 
     xAccelFilter(&n);
