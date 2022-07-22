@@ -3,6 +3,7 @@
 #include "sensor_msgs/Imu.h"
 #include "std_msgs/Float64.h"
 #include "geometry_msgs/Vector3Stamped.h"
+#include "math.h"
 
 //TODO split class declaration and implementaton
 #define QUEUESIZE 100
@@ -39,7 +40,9 @@ void xAccelFilter::callbackPublishAccelAvg(const ros::TimerEvent&){
 
 void xAccelFilter::accelRawCallback(const geometry_msgs::Vector3Stamped::ConstPtr& msg) {
     long lastSample = samples[idx];
-    long newSample = msg->vector.x;
+    long x = msg->vector.x;
+    long y = msg->vector.y;
+    long newSample = sqrt((x*x)+(y*y)); // simple vector addition
     
     samples[idx] = newSample;
     
