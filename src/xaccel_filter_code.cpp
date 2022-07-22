@@ -21,8 +21,8 @@ class xAccelFilter{
         ros::Subscriber accelRawSub;
         ros::Publisher accelFilterPub;
 
-        long samples[QUEUESIZE];
-        long avg;
+        double samples[QUEUESIZE] = {0};
+        double avg;
         int idx;
 };
 
@@ -39,11 +39,16 @@ void xAccelFilter::callbackPublishAccelAvg(const ros::TimerEvent&){
 }
 
 void xAccelFilter::accelRawCallback(const geometry_msgs::Vector3Stamped::ConstPtr& msg) {
-    long lastSample = samples[idx];
-    long x = msg->vector.x;
-    long y = msg->vector.y;
-    long newSample = sqrt((x*x)+(y*y)); // simple vector addition
+    ROS_INFO("DEBUG");
     
+    double lastSample = samples[idx];
+    double x = msg->vector.x;
+    //double y = msg->vector.y;
+    //double newSample = sqrt((x*x)+(y*y)); // simple vector addition
+    double newSample = 0.0;
+
+    ROS_INFO("%lf", newSample);    
+
     samples[idx] = newSample;
     
     avg += newSample / QUEUESIZE; // update average with new sample
@@ -60,18 +65,25 @@ xAccelFilter::xAccelFilter(ros::NodeHandle* nh){
     //TODO setup sub/pub
     ros::Subscriber accelRawSub = nh->subscribe<geometry_msgs::Vector3Stamped>("filter/free_acceleration", 1, &xAccelFilter::accelRawCallback, this);
     ros::Publisher accelFilterPub = nh->advertise<std_msgs::Float64>("xAccelFilter/accel_x", 1);
-    
+    ROS_INFO("CONSTRUCTOR INIT1");
     //ros::Timer timer1 = nh->createTimer(ros::Duration(0.01), publishAccelAvg, this);
 }
 
-int main(int argv, char** argc){
+int main(int argc, char** argv){
     
-    ros::init(argv, argc, "xAccelFilter");
+    ros::init(argc, argv, "xAccelFilter");
     ros::NodeHandle n;
+    
+    ros::AsyncSpinner spinner(1);
+
+    ros::Time::waitForValid();
 
     xAccelFilter filter(&n);
 
-    ros::spin();
+    spinner.start();
+    ROS_INFO("START");
+    ros::waitForShutdown();   
 
+    ROS_INFO("EXIT");
     return 0;
 }
