@@ -15,19 +15,18 @@
 using namespace message_filters;
 
 #define QUEUESIZE 100
+//TODO split class implementation and decleration
 class xAccelFilter{
     public:
         xAccelFilter(ros::NodeHandle* nh);
 
         void accelRawCallback(const geometry_msgs::Vector3Stamped::ConstPtr& amsg, const geometry_msgs::QuaternionStamped::ConstPtr& qmsg);
-
-	//void accelRawCallback(const sensor_msgs::Imu::ConstPtr& msg);
 	
         void publishAccelAvg(void);
 
         void callbackPublishAccelAvg(const ros::TimerEvent&);
 
-	double calcAccel(const geometry_msgs::Vector3Stamped freeAccMsg, const geometry_msgs::QuaternionStamped orientMsg); 
+	double calcAccel(const geometry_msgs::QuaternionStamped orientMsg); 
 
 	double angleDif(double angleA, double angleB);
 
@@ -39,41 +38,49 @@ class xAccelFilter{
 
        	TimeSynchronizer<geometry_msgs::Vector3Stamped, geometry_msgs::QuaternionStamped> sync;
 
-        double samples[QUEUESIZE] = {0};
-        double avg;
-        int idx;
+        double x_samples[QUEUESIZE] = {0};
+        double y_samples[QUEUESIZE] = {0};
+        double x_avg;
+        double y_avg;
+        int i_x, i_y;
+
+        double accel_avg;
+
 };
 
 void xAccelFilter::publishAccelAvg(void){
     std_msgs::Float64 msg;
-    msg.data = avg;
-   // ROS_INFO("%lf | %lf", avg, msg.data);
-    accelFilterPub.publish(msg);
-}
-
-void xAccelFilter::callbackPublishAccelAvg(const ros::TimerEvent&){
-    std_msgs::Float64 msg;
-    msg.data = avg;
+    msg.data = accel_avg;
    // ROS_INFO("%lf | %lf", avg, msg.data);
     accelFilterPub.publish(msg);
 }
 
 void xAccelFilter::accelRawCallback(const geometry_msgs::Vector3Stamped::ConstPtr& amsg, const geometry_msgs::QuaternionStamped::ConstPtr& qmsg) {
     //ROS_INFO("DEBUG");
+    double x_ls, y_ls, x_ns, y_ns;
     
-    double lastSample = samples[idx];
     geometry_msgs::Vector3Stamped accelData = *amsg;
     geometry_msgs::QuaternionStamped quatData = *qmsg;
-    double newSample = calcAccel(accelData, quatData);
-   
-    //ROS_INFO("%lf", newSample);
 
-    samples[idx] = newSample;
+    x_ls = x_samples[i_x];
+    y_ls = y_samples[i_y];
+
+    x_ns = accelData.vector.x;
+    y_ns = accelData.vector.y;
+
+    x_samples[i_x] = x_ns;
+    y_samples[i_y] = y_ns;
     
-    avg += newSample / QUEUESIZE; // update average with new sample
-    avg -= lastSample / QUEUESIZE; // due to a rolling average, the oldest sample must be removed from the average calculation
+    x_avg += x_ns / QUEUESIZE; // update average with new sample
+    x_avg -= x_ls / QUEUESIZE; // due to a rolling average, the oldest sample must be removed from the average calculation
 
-    idx = (idx + 1) % QUEUESIZE; // idx goes from [0] to [QUEUESIZE - 1] with rollover
+    y_avg += y_ns / QUEUESIZE; // update average with new sample
+    y_avg -= y_ls / QUEUESIZE; // due to a rolling average, the oldest sample must be removed from the average calculation
+
+    i_x = (i_x + 1) % QUEUESIZE; // idx goes from [0] to [QUEUESIZE - 1] with rollover
+    i_y = (i_y + 1) % QUEUESIZE; // idx goes from [0] to [QUEUESIZE - 1] with rollover
+
+    accel_avg = calcAccel(quatData); // find total linear acceleration (considering both x and y direction)
 
     publishAccelAvg();
 }
@@ -99,10 +106,10 @@ double xAccelFilter::angleDif(double angleA, double angleB){
 
 	return result;
 }
-
-double xAccelFilter::calcAccel(const geometry_msgs::Vector3Stamped freeAccMsg, const geometry_msgs::QuaternionStamped orientMsg) {
-        double xAccel = freeAccMsg.vector.x;
-        double yAccel = freeAccMsg.vector.y;
+//const geometry_msgs::Vector3Stamped freeAccMsg, 
+double xAccelFilter::calcAccel(const geometry_msgs::QuaternionStamped orientMsg) {
+        double xAccel = x_avg;
+        double yAccel = y_avg;
 
 
         #define PI 3.14159265
@@ -123,8 +130,6 @@ double xAccelFilter::calcAccel(const geometry_msgs::Vector3Stamped freeAccMsg, c
 
         double accMag = sqrt(xAccel*xAccel + yAccel*yAccel);
 
-
-
         if(angleDif(accYaw, vehicleYaw) < 90.0) {
 		//ROS_INFO("angle dif is less than 90.0\n");
                 return accMag;
@@ -138,8 +143,10 @@ xAccelFilter::xAccelFilter(ros::NodeHandle* nh) :
   accelRawSub(*(nh), "filter/free_acceleration", 1),
   quatRawSub(*(nh), "filter/quaternion", 1),
   sync(accelRawSub, quatRawSub, 10) {
-    idx = 0;
-    avg = 0;
+    i_x = 0;
+    i_y = 0;
+    x_avg = 0;
+    y_avg = 0;
     //TODO setup sub/pub
     accelFilterPub = nh->advertise<std_msgs::Float64>("xAccelFilter/accel_x", 1);
 
